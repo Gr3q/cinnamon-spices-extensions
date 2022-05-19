@@ -478,9 +478,86 @@ AutoTileTwoList = AutoTileTwoList_decorate([
 ;// CONCATENATED MODULE: ./src/3_8/ui/GridElement.ts
 
 const GridElement_Main = imports.ui.main;
-const GridElement_St = imports.gi.St;
+const { Button, Bin, BoxLayout, Align } = imports.gi.St;
+const { Color } = imports.gi.Clutter;
+const { Cursor, util_get_transformed_allocation } = imports.gi.Cinnamon;
 class GridElement {
     constructor(app, monitor, width, height, coordx, coordy, delegate) {
+        this.buttonHovered = false;
+        this.currentCursor = null;
+        this.onActorMotion = (actor, event) => {
+            if (!this.buttonHovered) {
+                const actorBox = util_get_transformed_allocation(this.actor);
+                const eventPoint = event.get_coords();
+                this.SetCursor(actorBox, eventPoint);
+            }
+            return false;
+        };
+        this.onEdgeHover = (actor, event) => {
+            if (!this.actor || isFinalized(this.actor))
+                return false;
+            if (this.buttonHovered)
+                return false;
+            const actorBox = util_get_transformed_allocation(this.actor);
+            const eventPoint = event.get_coords();
+            this.SetCursor(actorBox, eventPoint);
+            return false;
+        };
+        this.onEdgeHoverLeave = (actor, event) => {
+            this.Cursor = null;
+            return false;
+        };
+        this.onButtonHover = (actor, event) => {
+            if (!this.button || isFinalized(this.button))
+                return false;
+            this.buttonHovered = true;
+            return false;
+        };
+        this.onButtonHoverLeave = (actor, event) => {
+            this.buttonHovered = false;
+            return false;
+        };
+        this.SetCursor = (absActorBox, eventPoint) => {
+            const leftDistance = Math.abs(eventPoint[0] - absActorBox.x1);
+            const rightDistance = Math.abs(eventPoint[0] - absActorBox.x2);
+            const topDistance = Math.abs(eventPoint[1] - absActorBox.y1);
+            const bottomDistance = Math.abs(eventPoint[1] - absActorBox.y2);
+            const actorCornerAreaWidth = (absActorBox.x2 - absActorBox.x1) / 10;
+            const actorCornerAreaHeight = (absActorBox.y2 - absActorBox.y1) / 10;
+            const nbCols = this.app.config.nbCols.length;
+            const nbRows = this.app.config.nbRows.length;
+            const canAdjustRight = nbCols > 1 && this.coordx < nbCols - 1;
+            const canAdjustLeft = this.coordx > 0;
+            const canAdjustTop = nbRows > 1 && this.coordy < nbRows - 1;
+            const canAdjustBottom = this.coordy > 0;
+            const smallestDistance = Math.min(leftDistance, rightDistance, topDistance, bottomDistance);
+            let cursor = null;
+            if (leftDistance < actorCornerAreaWidth && topDistance < actorCornerAreaHeight && canAdjustTop && canAdjustLeft) {
+                cursor = Cursor.RESIZE_TOP_LEFT;
+            }
+            else if (rightDistance < actorCornerAreaWidth && topDistance < actorCornerAreaHeight && canAdjustTop && canAdjustRight) {
+                cursor = Cursor.RESIZE_TOP_RIGHT;
+            }
+            else if (leftDistance < actorCornerAreaWidth && bottomDistance < actorCornerAreaHeight && canAdjustBottom && canAdjustLeft) {
+                cursor = Cursor.RESIZE_BOTTOM_LEFT;
+            }
+            else if (rightDistance < actorCornerAreaWidth && bottomDistance < actorCornerAreaHeight && canAdjustBottom && canAdjustRight) {
+                cursor = Cursor.RESIZE_BOTTOM_RIGHT;
+            }
+            else if (smallestDistance === leftDistance && canAdjustLeft) {
+                cursor = Cursor.RESIZE_LEFT;
+            }
+            else if (smallestDistance === rightDistance && canAdjustRight) {
+                cursor = Cursor.RESIZE_RIGHT;
+            }
+            else if (smallestDistance === topDistance && canAdjustTop) {
+                cursor = Cursor.RESIZE_TOP;
+            }
+            else if (smallestDistance === bottomDistance && canAdjustBottom) {
+                cursor = Cursor.RESIZE_BOTTOM;
+            }
+            this.Cursor = cursor;
+        };
         this._onButtonPress = () => {
             this.delegate._onButtonPress(this);
             return false;
@@ -513,27 +590,49 @@ class GridElement {
             this.active = null;
         };
         this.app = app;
-        this.actor = new GridElement_St.Button({
+        this.actor = new BoxLayout({
             style_class: 'table-element',
             width: width,
             height: height,
+            x_expand: false,
+            y_expand: false,
             reactive: true,
             can_focus: true,
             track_hover: true,
-            x_expand: false,
-            y_expand: false,
-            y_fill: false,
-            x_fill: false,
         });
+        this.button = new Button({
+            style_class: 'table-button',
+            reactive: true,
+            can_focus: true,
+            track_hover: true,
+        });
+        this.actor.add(this.button, { expand: true });
         this.monitor = monitor;
         this.coordx = coordx;
         this.coordy = coordy;
         this.width = width;
         this.height = height;
         this.delegate = delegate;
-        this.actor.connect('button-press-event', this._onButtonPress);
+        this.button.connect('button-press-event', this._onButtonPress);
         this.actor.connect('notify::hover', this._onHoverChanged);
+        this.button.connect("enter-event", this.onButtonHover);
+        this.actor.connect("motion-event", this.onActorMotion);
+        this.button.connect("leave-event", this.onButtonHoverLeave);
+        this.actor.connect("enter-event", this.onEdgeHover);
+        this.actor.connect("leave-event", this.onEdgeHoverLeave);
         this.active = false;
+    }
+    set Cursor(val) {
+        if (this.currentCursor === val) {
+            return;
+        }
+        this.currentCursor = val;
+        if (val == null) {
+            global.unset_cursor();
+        }
+        else {
+            global.set_cursor(val);
+        }
     }
 }
 
@@ -718,7 +817,7 @@ var ToggleSettingsButton_decorate = (undefined && undefined.__decorate) || funct
 };
 
 
-const { Icon, IconType, Button } = imports.gi.St;
+const { Icon, IconType, Button: ToggleSettingsButton_Button } = imports.gi.St;
 const ToggleSettingsButton_Tooltips = imports.ui.tooltips;
 const { IconTheme } = imports.gi.Gtk;
 let ToggleSettingsButton = class ToggleSettingsButton {
@@ -743,7 +842,7 @@ let ToggleSettingsButton = class ToggleSettingsButton {
         };
         this.settings = setting;
         this.text = text;
-        this.actor = new Button({
+        this.actor = new ToggleSettingsButton_Button({
             style_class: "settings-button",
             reactive: true,
             can_focus: true,
@@ -826,11 +925,11 @@ var Grid_decorate = (undefined && undefined.__decorate) || function (decorators,
 
 
 
-const { BoxLayout, Table, Bin } = imports.gi.St;
+const { BoxLayout: Grid_BoxLayout, Table, Bin: Grid_Bin } = imports.gi.St;
 const Grid_Main = imports.ui.main;
 const Grid_Tweener = imports.ui.tweener;
 const { Side } = imports.gi.Meta;
-const { Color } = imports.gi.Clutter;
+const { Color: Grid_Color } = imports.gi.Clutter;
 let Grid = class Grid {
     constructor(app, monitor, title, cols, rows) {
         this.tableWidth = 220;
@@ -904,7 +1003,7 @@ let Grid = class Grid {
             this.elementsDelegateSignals = [];
             this.elementsDelegateSignals.push(this.elementsDelegate.connect('resize-done', this.OnResize));
             for (let r = 0; r < this.rows.length; r++) {
-                const row = new BoxLayout();
+                const row = new Grid_BoxLayout();
                 for (let c = 0; c < this.cols.length; c++) {
                     if (c === 0) {
                         this.elements[r] = [];
@@ -913,7 +1012,7 @@ let Grid = class Grid {
                     const finalHeight = heightUnit * this.rows[r].span;
                     let element = new GridElement(this.app, this.monitor, finalWidth, finalHeight, c, r, this.elementsDelegate);
                     this.elements[r][c] = element;
-                    const bin = new Bin();
+                    const bin = new Grid_Bin();
                     bin.add_actor(element.actor);
                     row.add(bin, { expand: true });
                 }
@@ -1076,7 +1175,7 @@ let Grid = class Grid {
         this.tableHeight = 200;
         this.tableWidth = 220;
         this.borderwidth = 2;
-        this.actor = new BoxLayout({
+        this.actor = new Grid_BoxLayout({
             vertical: true,
             style_class: 'grid-panel',
             reactive: true,
@@ -1101,7 +1200,7 @@ let Grid = class Grid {
             reactive: true,
         });
         this.RebuildGridSettingsButtons();
-        this.table = new BoxLayout({
+        this.table = new Grid_BoxLayout({
             style_class: 'table',
             can_focus: true,
             track_hover: true,

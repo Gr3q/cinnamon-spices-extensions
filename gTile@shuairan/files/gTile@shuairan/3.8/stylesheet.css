@@ -27,6 +27,17 @@
     background-color: rgba(240,240,240,0.8);
 }
 
+.table-button{
+    background-color: rgba(255,0,0,0.4);
+    border-radius: 3px;
+    margin: 5px;
+}
+
+.table-button:hover, .table-button:activate
+{
+    background-color: rgba(255,0,0,0.8);
+}
+
 .top-box
 {
     padding:1em;
