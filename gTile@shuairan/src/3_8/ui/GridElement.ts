@@ -72,16 +72,16 @@ export class GridElement {
             this._onHoverChanged
         );
 
-        this.button.connect("enter-event", this.onButtonHover);
-        this.actor.connect("motion-event", this.onActorMotion);
-        this.button.connect("leave-event", this.onButtonHoverLeave);
+        this.button.connect("enter-event", this.onSelectAreaHover);
+        this.button.connect("leave-event", this.onSelectAreaHoverLeave);
+        this.actor.connect("motion-event", this.onEdgeMotion);
         this.actor.connect("enter-event", this.onEdgeHover);
         this.actor.connect("leave-event", this.onEdgeHoverLeave);
 
         this.active = false;
     }
 
-    private onActorMotion = (actor: imports.gi.St.BoxLayout, event: imports.gi.Clutter.Event) => {
+    private onEdgeMotion = (actor: imports.gi.St.BoxLayout, event: imports.gi.Clutter.Event) => {
         if (!this.buttonHovered) {
             const actorBox = util_get_transformed_allocation(this.actor);
             const eventPoint = event.get_coords();
@@ -106,13 +106,13 @@ export class GridElement {
         return false;
     }
 
-    private onButtonHover = (actor: imports.gi.St.Button, event: imports.gi.Clutter.CrossingEvent) => {
+    private onSelectAreaHover = (actor: imports.gi.St.Button, event: imports.gi.Clutter.CrossingEvent) => {
         if (!this.button || isFinalized(this.button)) return false;
         this.buttonHovered = true;
         return false;
     }
 
-    private onButtonHoverLeave = (actor: imports.gi.St.Button, event: imports.gi.Clutter.CrossingEvent) => {
+    private onSelectAreaHoverLeave = (actor: imports.gi.St.Button, event: imports.gi.Clutter.CrossingEvent) => {
         this.buttonHovered = false;
         return false;
     }

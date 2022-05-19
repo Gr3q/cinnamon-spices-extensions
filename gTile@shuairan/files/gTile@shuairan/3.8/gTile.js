@@ -485,7 +485,7 @@ class GridElement {
     constructor(app, monitor, width, height, coordx, coordy, delegate) {
         this.buttonHovered = false;
         this.currentCursor = null;
-        this.onActorMotion = (actor, event) => {
+        this.onEdgeMotion = (actor, event) => {
             if (!this.buttonHovered) {
                 const actorBox = util_get_transformed_allocation(this.actor);
                 const eventPoint = event.get_coords();
@@ -507,13 +507,13 @@ class GridElement {
             this.Cursor = null;
             return false;
         };
-        this.onButtonHover = (actor, event) => {
+        this.onSelectAreaHover = (actor, event) => {
             if (!this.button || isFinalized(this.button))
                 return false;
             this.buttonHovered = true;
             return false;
         };
-        this.onButtonHoverLeave = (actor, event) => {
+        this.onSelectAreaHoverLeave = (actor, event) => {
             this.buttonHovered = false;
             return false;
         };
@@ -615,9 +615,9 @@ class GridElement {
         this.delegate = delegate;
         this.button.connect('button-press-event', this._onButtonPress);
         this.actor.connect('notify::hover', this._onHoverChanged);
-        this.button.connect("enter-event", this.onButtonHover);
-        this.actor.connect("motion-event", this.onActorMotion);
-        this.button.connect("leave-event", this.onButtonHoverLeave);
+        this.button.connect("enter-event", this.onSelectAreaHover);
+        this.button.connect("leave-event", this.onSelectAreaHoverLeave);
+        this.actor.connect("motion-event", this.onEdgeMotion);
         this.actor.connect("enter-event", this.onEdgeHover);
         this.actor.connect("leave-event", this.onEdgeHoverLeave);
         this.active = false;
