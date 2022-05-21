@@ -476,17 +476,38 @@ AutoTileTwoList = AutoTileTwoList_decorate([
 ;
 
 ;// CONCATENATED MODULE: ./src/3_8/ui/GridElement.ts
+var GridElement_decorate = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
 
 const GridElement_Main = imports.ui.main;
 const { Button, Bin, BoxLayout, Align } = imports.gi.St;
 const { Color } = imports.gi.Clutter;
 const { Cursor, util_get_transformed_allocation } = imports.gi.Cinnamon;
-class GridElement {
+let GridElement = class GridElement {
     constructor(app, monitor, width, height, coordx, coordy, delegate) {
         this.buttonHovered = false;
+        this.edgePressed = false;
         this.currentCursor = null;
+        this.prevMotionEvent = null;
         this.onEdgeMotion = (actor, event) => {
-            if (!this.buttonHovered) {
+            if (this.edgePressed) {
+                if (this.prevMotionEvent != null) {
+                    const eventPoint = event.get_coords();
+                    const oldEventPoint = this.prevMotionEvent.get_coords();
+                    this.emit("resize-request", actor, {
+                        event: event,
+                        absoluteActorBox: actor.get_allocation_box(),
+                        delta: [eventPoint[0] - oldEventPoint[0], eventPoint[1] - oldEventPoint[1]],
+                        side: this.currentCursor,
+                    }, this.coordx, this.coordy);
+                }
+                this.prevMotionEvent = event;
+            }
+            else if (!this.buttonHovered) {
                 const actorBox = util_get_transformed_allocation(this.actor);
                 const eventPoint = event.get_coords();
                 this.SetCursor(actorBox, eventPoint);
@@ -505,6 +526,8 @@ class GridElement {
         };
         this.onEdgeHoverLeave = (actor, event) => {
             this.Cursor = null;
+            this.edgePressed = false;
+            this.prevMotionEvent = null;
             return false;
         };
         this.onSelectAreaHover = (actor, event) => {
@@ -558,8 +581,8 @@ class GridElement {
             }
             this.Cursor = cursor;
         };
-        this._onButtonPress = () => {
-            this.delegate._onButtonPress(this);
+        this._onButtonPress = (final) => {
+            this.delegate._onButtonPress(this, final);
             return false;
         };
         this._onHoverChanged = () => {
@@ -613,13 +636,15 @@ class GridElement {
         this.width = width;
         this.height = height;
         this.delegate = delegate;
-        this.button.connect('button-press-event', this._onButtonPress);
-        this.actor.connect('notify::hover', this._onHoverChanged);
+        this.button.connect('button-press-event', (owner, e) => this._onButtonPress(false));
+        this.button.connect('notify::hover', this._onHoverChanged);
         this.button.connect("enter-event", this.onSelectAreaHover);
         this.button.connect("leave-event", this.onSelectAreaHoverLeave);
         this.actor.connect("motion-event", this.onEdgeMotion);
         this.actor.connect("enter-event", this.onEdgeHover);
         this.actor.connect("leave-event", this.onEdgeHoverLeave);
+        this.actor.connect("button-press-event", (a, e) => { this.edgePressed = true; return false; });
+        this.actor.connect("button-release-event", (a, e) => { this.edgePressed = false; return false; });
         this.active = false;
     }
     set Cursor(val) {
@@ -634,7 +659,11 @@ class GridElement {
             global.set_cursor(val);
         }
     }
-}
+};
+GridElement = GridElement_decorate([
+    addSignals
+], GridElement);
+
 
 ;// CONCATENATED MODULE: ./src/3_8/ui/GridElementDelegate.ts
 var GridElementDelegate_decorate = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
@@ -779,7 +808,17 @@ let GridElementDelegate = class GridElementDelegate {
         this.app = app;
         this.settings = this.app.config;
     }
-    _onButtonPress(gridElement) {
+    _onButtonPress(gridElement, final) {
+        if (final) {
+            this.activated = true;
+            if (this.first == null) {
+                this.first = gridElement;
+                this.activatedActors = [];
+                this.activatedActors.push(gridElement);
+                gridElement.actor.add_style_pseudo_class('activate');
+                gridElement.active = true;
+            }
+        }
         if (!this.activated) {
             this.activated = true;
             this.activatedActors = [];
@@ -1086,7 +1125,7 @@ let Grid = class Grid {
             }
             if (modifier && this.keyElement) {
                 if (!this.elementsDelegate.activated) {
-                    this.keyElement._onButtonPress();
+                    this.keyElement._onButtonPress(false);
                 }
             }
             else if (this.keyElement) {
@@ -1146,7 +1185,7 @@ let Grid = class Grid {
         };
         this.BeginTiling = () => {
             if (this.keyElement) {
-                this.keyElement._onButtonPress();
+                this.keyElement._onButtonPress(true);
                 this.Reset();
             }
         };
