@@ -488,7 +488,7 @@ const { Button, Bin, BoxLayout, Align } = imports.gi.St;
 const { Color } = imports.gi.Clutter;
 const { Cursor, util_get_transformed_allocation } = imports.gi.Cinnamon;
 let GridElement = class GridElement {
-    constructor(app, monitor, width, height, coordx, coordy, delegate) {
+    constructor(app, grid, monitor, width, height, coordx, coordy, delegate) {
         this.buttonHovered = false;
         this.edgePressed = false;
         this.currentCursor = null;
@@ -498,12 +498,13 @@ let GridElement = class GridElement {
                 if (this.prevMotionEvent != null) {
                     const eventPoint = event.get_coords();
                     const oldEventPoint = this.prevMotionEvent.get_coords();
-                    this.emit("resize-request", actor, {
+                    this.emit("resize-request", this.actor, {
                         event: event,
-                        absoluteActorBox: actor.get_allocation_box(),
+                        absoluteActorBox: this.actor.get_allocation_box(),
                         delta: [eventPoint[0] - oldEventPoint[0], eventPoint[1] - oldEventPoint[1]],
                         side: this.currentCursor,
                     }, this.coordx, this.coordy);
+                    global.log("onEdgeMotionEventFired", [eventPoint[0] - oldEventPoint[0], eventPoint[1] - oldEventPoint[1]]);
                 }
                 this.prevMotionEvent = event;
             }
@@ -515,9 +516,8 @@ let GridElement = class GridElement {
             return false;
         };
         this.onEdgeHover = (actor, event) => {
+            global.log("onEdgeHover");
             if (!this.actor || isFinalized(this.actor))
-                return false;
-            if (this.buttonHovered)
                 return false;
             const actorBox = util_get_transformed_allocation(this.actor);
             const eventPoint = event.get_coords();
@@ -525,12 +525,15 @@ let GridElement = class GridElement {
             return false;
         };
         this.onEdgeHoverLeave = (actor, event) => {
-            this.Cursor = null;
-            this.edgePressed = false;
-            this.prevMotionEvent = null;
+            global.log("onEdgeHoverLeave");
+            if (!this.edgePressed) {
+                this.prevMotionEvent = null;
+                this.Cursor = null;
+            }
             return false;
         };
         this.onSelectAreaHover = (actor, event) => {
+            global.log("buttonHovered");
             if (!this.button || isFinalized(this.button))
                 return false;
             this.buttonHovered = true;
@@ -613,6 +616,7 @@ let GridElement = class GridElement {
             this.active = null;
         };
         this.app = app;
+        this.grid = grid;
         this.actor = new BoxLayout({
             style_class: 'table-element',
             width: width,
@@ -626,8 +630,6 @@ let GridElement = class GridElement {
         this.button = new Button({
             style_class: 'table-button',
             reactive: true,
-            can_focus: true,
-            track_hover: true,
         });
         this.actor.add(this.button, { expand: true });
         this.monitor = monitor;
@@ -637,14 +639,14 @@ let GridElement = class GridElement {
         this.height = height;
         this.delegate = delegate;
         this.button.connect('button-press-event', (owner, e) => this._onButtonPress(false));
-        this.button.connect('notify::hover', this._onHoverChanged);
+        this.actor.connect('notify::hover', this._onHoverChanged);
         this.button.connect("enter-event", this.onSelectAreaHover);
         this.button.connect("leave-event", this.onSelectAreaHoverLeave);
-        this.actor.connect("motion-event", this.onEdgeMotion);
+        this.grid.table.connect("motion-event", this.onEdgeMotion);
         this.actor.connect("enter-event", this.onEdgeHover);
         this.actor.connect("leave-event", this.onEdgeHoverLeave);
-        this.actor.connect("button-press-event", (a, e) => { this.edgePressed = true; return false; });
-        this.actor.connect("button-release-event", (a, e) => { this.edgePressed = false; return false; });
+        this.actor.connect("button-press-event", (a, e) => { global.log("OnButtonPress"); this.edgePressed = true; return false; });
+        this.actor.connect("button-release-event", (a, e) => { global.log("onRelease"); this.edgePressed = false; return false; });
         this.active = false;
     }
     set Cursor(val) {
@@ -969,6 +971,7 @@ const Grid_Main = imports.ui.main;
 const Grid_Tweener = imports.ui.tweener;
 const { Side } = imports.gi.Meta;
 const { Color: Grid_Color } = imports.gi.Clutter;
+const { Cursor: Grid_Cursor } = imports.gi.Cinnamon;
 let Grid = class Grid {
     constructor(app, monitor, title, cols, rows) {
         this.tableWidth = 220;
@@ -1049,13 +1052,43 @@ let Grid = class Grid {
                     }
                     const finalWidth = widthUnit * this.cols[c].span;
                     const finalHeight = heightUnit * this.rows[r].span;
-                    let element = new GridElement(this.app, this.monitor, finalWidth, finalHeight, c, r, this.elementsDelegate);
+                    let element = new GridElement(this.app, this, this.monitor, finalWidth, finalHeight, c, r, this.elementsDelegate);
+                    element.connect("resize-request", this.onGridElementResize);
                     this.elements[r][c] = element;
                     const bin = new Grid_Bin();
                     bin.add_actor(element.actor);
-                    row.add(bin, { expand: true });
+                    row.add(bin);
                 }
-                this.table.add(row, { expand: true });
+                this.table.add(row);
+            }
+        };
+        this.onGridElementResize = (element, actor, event, coordx, coordY) => {
+            global.log(event.side);
+            switch (event.side) {
+                case Grid_Cursor.RESIZE_LEFT:
+                    let first = true;
+                    for (let r = 0; r < this.elements.length; r++) {
+                        for (let c = coordx - 1; c <= coordx; c++) {
+                            const element = this.elements[r][c];
+                            element.actor.width = element.actor.width + (first ? event.delta[0] : -event.delta[0]);
+                            first = false;
+                        }
+                    }
+                    break;
+                case Grid_Cursor.RESIZE_BOTTOM_LEFT:
+                    break;
+                case Grid_Cursor.RESIZE_BOTTOM:
+                    break;
+                case Grid_Cursor.RESIZE_BOTTOM_RIGHT:
+                    break;
+                case Grid_Cursor.RESIZE_RIGHT:
+                    break;
+                case Grid_Cursor.RESIZE_TOP_RIGHT:
+                    break;
+                case Grid_Cursor.RESIZE_TOP:
+                    break;
+                case Grid_Cursor.RESIZE_TOP_LEFT:
+                    break;
             }
         };
         this.BindKeyControls = () => {

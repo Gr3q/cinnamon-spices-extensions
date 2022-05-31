@@ -30,7 +30,7 @@
 .table-button{
     background-color: rgba(255,0,0,0.4);
     border-radius: 3px;
-    margin: 5px;
+    margin: 10px;
 }
 
 .table-button:hover, .table-button:activate

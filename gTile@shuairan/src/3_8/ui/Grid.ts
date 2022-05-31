@@ -3,7 +3,7 @@ import { KEYCONTROL, SETTINGS_ANIMATION, SETTINGS_AUTO_CLOSE } from "../constant
 import { addSignals, getAdjacentMonitor, GetMonitorAspectRatio, getMonitorKey, objHasKey, SignalOverload } from "../utils";
 import { AutoTileMainAndList } from "./AutoTileMainAndList";
 import { AutoTileTwoList } from "./AutoTileTwoList";
-import { GridElement } from "./GridElement";
+import { GridElement, ResizeEvent } from "./GridElement";
 import { GridElementDelegate } from "./GridElementDelegate";
 import { GridSettingsButton } from "./GridSettingsButton";
 import { ToggleSettingsButton } from "./ToggleSettingsButton";
@@ -15,6 +15,7 @@ const Main = imports.ui.main;
 const Tweener = imports.ui.tweener;
 const { Side } = imports.gi.Meta;
 const { Color } = imports.gi.Clutter;
+const { Cursor } = imports.gi.Cinnamon;
 
 export interface Grid extends SignalOverload<"hide-tiling"> {
 
@@ -358,14 +359,45 @@ export class Grid {
         const finalWidth = widthUnit * this.cols[c].span;
         const finalHeight = heightUnit * this.rows[r].span;
 
-        let element = new GridElement(this.app, this.monitor, finalWidth, finalHeight, c, r, this.elementsDelegate);
+        let element = new GridElement(this.app, this, this.monitor, finalWidth, finalHeight, c, r, this.elementsDelegate);
+        element.connect("resize-request", this.onGridElementResize);
         this.elements[r][c] = element;
         // bin for better positioning for artificial margin
         const bin = new Bin();
         bin.add_actor(element.actor);
-        row.add(bin, {expand: true});
+        row.add(bin);
       }
-      this.table.add(row, {expand: true});
+      this.table.add(row);
+    }
+  }
+
+  private onGridElementResize = (element: GridElement, actor: imports.gi.Clutter.Actor, event: ResizeEvent, coordx: number, coordY: number) => {
+    global.log(event.side);
+    switch(event.side) {
+      case Cursor.RESIZE_LEFT:
+        let first = true;
+        for(let r = 0; r < this.elements.length; r++) {
+          for (let c = coordx - 1; c <= coordx; c++) {
+            const element = this.elements[r][c];
+            element.actor.width = element.actor.width + (first ? event.delta[0] : -event.delta[0]);
+            first = false;
+          }
+        }
+        break;
+      case Cursor.RESIZE_BOTTOM_LEFT:
+        break;
+      case Cursor.RESIZE_BOTTOM:
+        break;
+      case Cursor.RESIZE_BOTTOM_RIGHT:
+        break;
+      case Cursor.RESIZE_RIGHT:
+        break;
+      case Cursor.RESIZE_TOP_RIGHT:
+        break;
+      case Cursor.RESIZE_TOP:
+        break;
+      case Cursor.RESIZE_TOP_LEFT:
+        break;
     }
   }
 

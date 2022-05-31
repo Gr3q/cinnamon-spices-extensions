@@ -1,5 +1,6 @@
 import { App } from "../extension";
 import { addSignals, isFinalized, SignalOverload } from "../utils";
+import { Grid } from "./Grid";
 import { GridElementDelegate } from "./GridElementDelegate";
 const Main = imports.ui.main;
 const { Button, Bin, BoxLayout, Align } = imports.gi.St;
@@ -7,7 +8,7 @@ const { Color } = imports.gi.Clutter;
 const { Cursor, util_get_transformed_allocation } = imports.gi.Cinnamon;
 
 
-interface ResizeEvent {
+export interface ResizeEvent {
     event: imports.gi.Clutter.MotionEvent;
     absoluteActorBox: imports.gi.Clutter.ActorBox;
     delta: [x: number, y: number];
@@ -15,7 +16,7 @@ interface ResizeEvent {
 }
 
 export interface GridElement {
-    connect(signal: "resize-request", callback: (actor: imports.gi.Clutter.Actor, event: ResizeEvent, coordx: number, coordy: number) => void): number;
+    connect(signal: "resize-request", callback: (element: GridElement, actor: imports.gi.Clutter.Actor, event: ResizeEvent, coordx: number, coordy: number) => void): number;
     disconnect(signalID: number): void;
     emit(signal: "resize-request", actor: imports.gi.Clutter.Actor, event: ResizeEvent, coordx: number, coordy: number): void;
 }
@@ -32,6 +33,7 @@ export class GridElement {
     active: boolean;
     delegate: GridElementDelegate;
     private app: App;
+    private grid: Grid;
     private buttonHovered = false;
     private edgePressed = false;
     private currentCursor: imports.gi.Cinnamon.Cursor | null = null;
@@ -52,8 +54,9 @@ export class GridElement {
         }
     }
 
-    constructor(app: App, monitor: imports.ui.layout.Monitor, width: number, height: number, coordx: number, coordy: number, delegate: GridElementDelegate) {
+    constructor(app: App, grid: Grid, monitor: imports.ui.layout.Monitor, width: number, height: number, coordx: number, coordy: number, delegate: GridElementDelegate) {
         this.app = app;
+        this.grid = grid;
         this.actor = new BoxLayout({
             style_class: 'table-element',
             width: width,
@@ -67,8 +70,6 @@ export class GridElement {
         this.button = new Button({
             style_class: 'table-button',
             reactive: true,
-            can_focus: true,
-            track_hover: true,
         });
 
         this.actor.add(this.button, { expand: true });
@@ -84,33 +85,34 @@ export class GridElement {
             'button-press-event',
             (owner, e) => this._onButtonPress(false)
         );
-        this.button.connect(
+        this.actor.connect(
             'notify::hover',
             this._onHoverChanged
         );
 
         this.button.connect("enter-event", this.onSelectAreaHover);
         this.button.connect("leave-event", this.onSelectAreaHoverLeave);
-        this.actor.connect("motion-event", this.onEdgeMotion);
+        this.grid.table.connect("motion-event", this.onEdgeMotion);
         this.actor.connect("enter-event", this.onEdgeHover);
         this.actor.connect("leave-event", this.onEdgeHoverLeave);
-        this.actor.connect("button-press-event", (a, e) => { this.edgePressed = true; return false;});
-        this.actor.connect("button-release-event", (a, e) => { this.edgePressed = false; return false;});
+        this.actor.connect("button-press-event", (a, e) => { global.log("OnButtonPress"); this.edgePressed = true; return false;});
+        this.actor.connect("button-release-event", (a, e) => { global.log("onRelease"); this.edgePressed = false; return false;});
 
         this.active = false;
     }
 
-    private onEdgeMotion = (actor: imports.gi.St.BoxLayout, event: imports.gi.Clutter.MotionEvent) => {
+    private onEdgeMotion = (actor: imports.gi.St.Widget, event: imports.gi.Clutter.MotionEvent) => {
         if (this.edgePressed) {
             if (this.prevMotionEvent != null) {
                 const eventPoint = event.get_coords();
                 const oldEventPoint = this.prevMotionEvent.get_coords();
-                this.emit("resize-request", actor, {
+                this.emit("resize-request", this.actor, {
                     event: event,
-                    absoluteActorBox: actor.get_allocation_box(),
+                    absoluteActorBox: this.actor.get_allocation_box(),
                     delta: [eventPoint[0] - oldEventPoint[0], eventPoint[1] - oldEventPoint[1]],
                     side: this.currentCursor!,
                 }, this.coordx, this.coordy);
+                global.log("onEdgeMotionEventFired", [eventPoint[0] - oldEventPoint[0], eventPoint[1] - oldEventPoint[1]]);
             }
             this.prevMotionEvent = event;
         }
@@ -123,9 +125,8 @@ export class GridElement {
     }
 
     private onEdgeHover = (actor: imports.gi.St.BoxLayout, event: imports.gi.Clutter.CrossingEvent) => {
+        global.log("onEdgeHover");
         if (!this.actor || isFinalized(this.actor)) return false;
-        if (this.buttonHovered)
-            return false;
 
         const actorBox = util_get_transformed_allocation(this.actor);
         const eventPoint = event.get_coords();
@@ -134,13 +135,16 @@ export class GridElement {
     }
 
     private onEdgeHoverLeave = (actor: imports.gi.St.BoxLayout, event: imports.gi.Clutter.CrossingEvent) => {
-        this.Cursor = null;
-        this.edgePressed = false;
-        this.prevMotionEvent = null;
+        global.log("onEdgeHoverLeave");
+        if (!this.edgePressed) {
+            this.prevMotionEvent = null;
+            this.Cursor = null;
+        }
         return false;
     }
 
     private onSelectAreaHover = (actor: imports.gi.St.Button, event: imports.gi.Clutter.CrossingEvent) => {
+        global.log("buttonHovered")
         if (!this.button || isFinalized(this.button)) return false;
         this.buttonHovered = true;
         return false;
