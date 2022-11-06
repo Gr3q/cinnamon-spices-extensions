@@ -1,3 +1,5 @@
+import { App } from "./tiler";
+
 let metadata: any;
 
 let app: App;
@@ -12,16 +14,4 @@ export const enable = () => {
 
 export const disable = () => {
     app.Destroy();
-}
-
-class App {
-
-	public constructor() {
-		
-	}
-
-
-    public Destroy() {
-
-	}
 }

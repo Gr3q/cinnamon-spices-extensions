@@ -2,7 +2,7 @@
     "cinnamon-version": ["5.4"],
     "uuid": "tiling@gr3q",
     "name": "tiling",
-    "description": "Tile your windows as you like.",
+    "description": "Tile windows",
     "version": "1.0.0",
     "multiversion": true,
     "url" : "https://github.com/cinnamon/cinnamon-spices-extensions/tree/master/tiling%40gr3q"
