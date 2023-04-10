@@ -35,13 +35,36 @@ export class App implements IApp {
   }
 
   public get CurrentGrid(): Grid {
-    const grid = this.grids.find(x => x.monitor.index == this.currentMonitor.index)!;
+    if (this.grids.length == 0)
+        throw new Error("There should always be at least 1 grid to show.")
+
+    let grid = this.grids.find(x => x.monitor.index == this.currentMonitor.index);
+
+    // grid not found for current monitor and not showing on all monitors
+    if (!grid) {
+        if (!this.config.showGridOnAllMonitors) {
+            grid = this.grids[0];
+            grid.ChangeCurrentMonitor(this.currentMonitor);
+        }
+        else {
+            throw new Error("No grid found for monitor");
+        }
+    }
     return grid;
   }
 
+   /**
+   * if showGridOnAllMonitors is false, there is only 1 grid in this array, always for the current monitor.
+   * If true, there is 1 grid per monitor.
+   */
   public get Grids(): Grid[] {
     return this.grids;
   }
+
+  /**
+   * if showGridOnAllMonitors is false, there is only 1 grid in this array, always for the current monitor.
+   * If true, there is 1 grid per monitor.
+   */
   private grids: Grid[] = [];
 
   public readonly config: Config;
@@ -108,29 +131,35 @@ export class App implements IApp {
   }
 
   private ShowUI = () => {
-    this.focusMetaWindow = getFocusApp();
-    let wm_type = this.focusMetaWindow.get_window_type();
-    let layer = this.focusMetaWindow.get_layer();
+    try {
+        this.focusMetaWindow = getFocusApp();
+        let wm_type = this.focusMetaWindow.get_window_type();
+        let layer = this.focusMetaWindow.get_layer();
 
-    this.area.visible = true;
-    const window = this.focusMetaWindow;
-    if (window != null && wm_type !== 1 && layer > 0) {
-        for (const grid of this.grids) {
+        this.area.visible = true;
+        const window = this.focusMetaWindow;
+        if (window != null && wm_type !== 1 && layer > 0) {
+            for (const grid of this.grids) {
 
-            if (!this.config.showGridOnAllMonitors)
-                grid.ChangeCurrentMonitor(this.monitors.find(x => x.index == window.get_monitor()) ?? Main.layoutManager.primaryMonitor);
+                if (!this.config.showGridOnAllMonitors)
+                    grid.ChangeCurrentMonitor(this.monitors.find(x => x.index == window.get_monitor()) ?? Main.layoutManager.primaryMonitor);
 
-            const [pos_x, pos_y] = (!this.config.useMonitorCenter && grid.monitor.index == this.currentMonitor.index) ?  this.platform.get_window_center(window) : GetMonitorCenter(grid.monitor);
+                const [pos_x, pos_y] = (!this.config.useMonitorCenter && grid.monitor.index == this.currentMonitor.index) ?  this.platform.get_window_center(window) : GetMonitorCenter(grid.monitor);
 
-            grid.Show(Math.floor(pos_x - grid.actor.width / 2), Math.floor(pos_y - grid.actor.height / 2));
+                grid.Show(Math.floor(pos_x - grid.actor.width / 2), Math.floor(pos_y - grid.actor.height / 2));
 
-            this.OnFocusedWindowChanged();
-            this.visible = true;
+                this.OnFocusedWindowChanged();
+                this.visible = true;
+            }
         }
-    }
 
-    this.MoveUIActor();
-    this.BindKeyControls();
+        this.MoveUIActor();
+        this.BindKeyControls();
+    }
+    catch(e) {
+        global.logError(e);
+        this.HideUI();
+    }
   }
 
   private HideUI = () => {
@@ -218,12 +247,12 @@ export class App implements IApp {
    * Moves the UI to it's desired position based on it's current monitor;
    * @returns 
    */
-  private MoveUIActor = () => {
+  private MoveUIActor = (owner?: imports.gi.Meta.Window) => {
     if (!this.visible) {
       return;
     }
 
-    let window = this.focusMetaWindow;
+    let window = owner ?? this.focusMetaWindow;
     if (!window) 
       return;
 
@@ -237,6 +266,7 @@ export class App implements IApp {
 
         // Get center of where we want to be
         let monitor = grid.monitor;
+        // FIXME: window.get_monitor() reports the previous monitor when the window has been tile moved to another monitor while gTile is open.
         let isGridMonitor = window.get_monitor() === grid.monitor.index;
         if (isGridMonitor) {
             [pos_x, pos_y] = (!this.config.useMonitorCenter) ? this.platform.get_window_center(window) : GetMonitorCenter(monitor);

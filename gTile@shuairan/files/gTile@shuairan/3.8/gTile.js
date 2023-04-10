@@ -1266,23 +1266,29 @@ class App {
         };
         this.ShowUI = () => {
             var _a;
-            this.focusMetaWindow = getFocusApp();
-            let wm_type = this.focusMetaWindow.get_window_type();
-            let layer = this.focusMetaWindow.get_layer();
-            this.area.visible = true;
-            const window = this.focusMetaWindow;
-            if (window != null && wm_type !== 1 && layer > 0) {
-                for (const grid of this.grids) {
-                    if (!this.config.showGridOnAllMonitors)
-                        grid.ChangeCurrentMonitor((_a = this.monitors.find(x => x.index == window.get_monitor())) !== null && _a !== void 0 ? _a : app_Main.layoutManager.primaryMonitor);
-                    const [pos_x, pos_y] = (!this.config.useMonitorCenter && grid.monitor.index == this.currentMonitor.index) ? this.platform.get_window_center(window) : GetMonitorCenter(grid.monitor);
-                    grid.Show(Math.floor(pos_x - grid.actor.width / 2), Math.floor(pos_y - grid.actor.height / 2));
-                    this.OnFocusedWindowChanged();
-                    this.visible = true;
+            try {
+                this.focusMetaWindow = getFocusApp();
+                let wm_type = this.focusMetaWindow.get_window_type();
+                let layer = this.focusMetaWindow.get_layer();
+                this.area.visible = true;
+                const window = this.focusMetaWindow;
+                if (window != null && wm_type !== 1 && layer > 0) {
+                    for (const grid of this.grids) {
+                        if (!this.config.showGridOnAllMonitors)
+                            grid.ChangeCurrentMonitor((_a = this.monitors.find(x => x.index == window.get_monitor())) !== null && _a !== void 0 ? _a : app_Main.layoutManager.primaryMonitor);
+                        const [pos_x, pos_y] = (!this.config.useMonitorCenter && grid.monitor.index == this.currentMonitor.index) ? this.platform.get_window_center(window) : GetMonitorCenter(grid.monitor);
+                        grid.Show(Math.floor(pos_x - grid.actor.width / 2), Math.floor(pos_y - grid.actor.height / 2));
+                        this.OnFocusedWindowChanged();
+                        this.visible = true;
+                    }
                 }
+                this.MoveUIActor();
+                this.BindKeyControls();
             }
-            this.MoveUIActor();
-            this.BindKeyControls();
+            catch (e) {
+                global.logError(e);
+                this.HideUI();
+            }
         };
         this.HideUI = () => {
             this.RemoveKeyControls();
@@ -1329,11 +1335,11 @@ class App {
                 }
             }
         };
-        this.MoveUIActor = () => {
+        this.MoveUIActor = (owner) => {
             if (!this.visible) {
                 return;
             }
-            let window = this.focusMetaWindow;
+            let window = owner !== null && owner !== void 0 ? owner : this.focusMetaWindow;
             if (!window)
                 return;
             for (const grid of this.Grids) {
@@ -1429,7 +1435,18 @@ class App {
         return this.focusMetaWindow;
     }
     get CurrentGrid() {
-        const grid = this.grids.find(x => x.monitor.index == this.currentMonitor.index);
+        if (this.grids.length == 0)
+            throw new Error("There should always be at least 1 grid to show.");
+        let grid = this.grids.find(x => x.monitor.index == this.currentMonitor.index);
+        if (!grid) {
+            if (!this.config.showGridOnAllMonitors) {
+                grid = this.grids[0];
+                grid.ChangeCurrentMonitor(this.currentMonitor);
+            }
+            else {
+                throw new Error("No grid found for monitor");
+            }
+        }
         return grid;
     }
     get Grids() {
@@ -1509,8 +1526,8 @@ const subscribe_to_focused_window_changes = (window, callback) => {
     const connections = [];
     let actor = window.get_compositor_private();
     if (actor) {
-        connections.push(actor.connect('size-changed', callback));
-        connections.push(actor.connect('position-changed', callback));
+        connections.push(actor.connect('size-changed', () => callback(window)));
+        connections.push(actor.connect('position-changed', () => callback(window)));
     }
     return connections;
 };
