@@ -40,17 +40,24 @@ __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  "Extension": () => (/* binding */ Extension),
-  "disable": () => (/* binding */ disable),
-  "enable": () => (/* binding */ enable),
-  "init": () => (/* binding */ init)
+  Extension: () => (/* binding */ Extension),
+  disable: () => (/* binding */ disable),
+  enable: () => (/* binding */ enable),
+  init: () => (/* binding */ init)
 });
 
 ;// CONCATENATED MODULE: ./src/3_8/config.ts
 const { ExtensionSettings } = imports.ui.settings;
 const CONFIG_KEYS = {
-    CUSTOM_FONT: "panelFont"
+    CUSTOM_FONT: "panelFont",
+    PANEL_COLOR: "panelColor",
+    PANEL_BORDER_RADIUS: "panelBorderRadius",
+    PANEL_PADDING: "panelPadding",
+    PANEL_MARGIN: "panelMargin",
 };
+const customKeys = [
+    "CUSTOM_FONT"
+];
 class Config {
     constructor(app) {
         this.panelFont = null;
@@ -64,11 +71,34 @@ class Config {
     get PanelFontSize() {
         return this.panelFontSize;
     }
+    get PanelColor() {
+        return this._panelColor;
+    }
+    get PanelBackgroundColor() {
+        return this._panelBackgroundColor;
+    }
+    get PanelBorderRadius() {
+        return this._panelBorderRadius;
+    }
+    get PanelPadding() {
+        return this._panelPadding;
+    }
+    get PanelMargin() {
+        return this._panelMargin;
+    }
     Enable() {
         this.settings.bind(CONFIG_KEYS.CUSTOM_FONT, "_" + CONFIG_KEYS.CUSTOM_FONT, () => {
             this.ProcessSelectedFont();
-            this.app.UpdateCurrentFont();
+            this.app.ApplyStyles();
         });
+        let key;
+        for (key in CONFIG_KEYS) {
+            if (customKeys.includes(key))
+                continue;
+            this.settings.bind(CONFIG_KEYS[key], "_" + CONFIG_KEYS[key], () => {
+                this.app.ApplyStyles();
+            });
+        }
         this.ProcessSelectedFont();
     }
     Disable() {
@@ -104,10 +134,10 @@ class Extension {
         this.originalPanelStyles = [];
         this.enabled = false;
         this.panelsChangedKey = null;
-        this.UpdateCurrentFont = () => {
+        this.ApplyStyles = () => {
             var _a;
             if (this.settings.PanelFont == null) {
-                this.CleanupCurrentFont();
+                this.RestoreOriginalStyle();
             }
             else {
                 for (const panel of panelManager.getPanels()) {
@@ -116,11 +146,18 @@ class Extension {
                     if (this.originalPanelStyles[panel.panelId] == null) {
                         this.originalPanelStyles[panel.panelId] = panel.actor.style;
                     }
-                    panel.actor.style = ((_a = this.originalPanelStyles[panel.panelId]) !== null && _a !== void 0 ? _a : "") + `font-family: ${this.settings.PanelFont};`;
+                    const panelEditMode = global.settings.get_boolean("panel-edit-mode");
+                    panel.actor.style = ((_a = this.originalPanelStyles[panel.panelId]) !== null && _a !== void 0 ? _a : "");
+                    panel.actor.style += `font-family: ${this.settings.PanelFont};`;
+                    panel.actor.style += `font-size: ${this.settings.PanelFontSize}px;`;
+                    panel.actor.style += `background-color: ${this.settings.PanelColor};`;
+                    panel.actor.style += `border-radius: ${this.settings.PanelBorderRadius}px;`;
+                    panel.actor.style += `margin-left: ${this.settings.PanelMargin}px; margin-right: ${this.settings.PanelMargin}px;`;
+                    panel.actor.style += `padding-left: ${this.settings.PanelPadding}px; padding-right: ${this.settings.PanelPadding}px;`;
                 }
             }
         };
-        this.CleanupCurrentFont = () => {
+        this.RestoreOriginalStyle = () => {
             for (const panel of panelManager.getPanels()) {
                 if (panel == null)
                     continue;
@@ -133,14 +170,17 @@ class Extension {
     Enable() {
         this.enabled = true;
         this.settings.Enable();
-        this.UpdateCurrentFont();
+        this.ApplyStyles();
         this.panelsChangedKey = global.settings.connect("changed::panels-enabled", () => {
-            this.UpdateCurrentFont();
+            this.ApplyStyles();
+        });
+        global.settings.connect("changed::panel-edit-mode", () => {
+            this.ApplyStyles();
         });
     }
     Disable() {
         this.settings.Disable();
-        this.CleanupCurrentFont();
+        this.RestoreOriginalStyle();
         if (this.panelsChangedKey != null) {
             global.settings.disconnect(this.panelsChangedKey);
             this.panelsChangedKey = null;

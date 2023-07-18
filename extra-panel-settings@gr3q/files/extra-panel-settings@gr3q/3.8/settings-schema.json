@@ -8,7 +8,8 @@
          "type": "page",
          "title": "Global Panel Settings",
          "sections": [
-            "font-section"
+            "font-section",
+            "styling-section"
          ]
       },
       "font-section": {
@@ -17,11 +18,53 @@
          "keys": [
             "panelFont"
          ]
+      },
+      "styling-section": {
+         "type": "section",
+         "title": "Styling Settings",
+         "keys": [
+            "panelColor",
+            "panelBorderRadius",
+            "panelPadding",
+            "panelMargin"
+         ]
       }
    },
    "panelFont": {
       "type" : "fontchooser",
       "description" : "Font used in Panels",
       "default" : ""
+   },
+   "panelColor": {
+      "type": "colorchooser",
+      "description": "Color of the Panel",
+      "default": "grey"
+   },
+   "panelBorderRadius": {
+      "type": "spinbutton",
+      "description": "Border Radius of the Panel",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "units" : "pixels"
+   },
+   "panelPadding": {
+      "type": "spinbutton",
+      "description": "Long-Axis Padding of the Panel",
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "units" : "pixels"
+   },
+   "panelMargin": {
+      "type": "spinbutton",
+      "description": "Long-Axis Margin of the Panel",
+      "default": 0,
+      "min": 0,
+      "max": 2000,
+      "step": 1,
+      "units" : "pixels"
    }
 }

@@ -16,24 +16,28 @@ export class Extension {
   Enable() {
     this.enabled = true;
     this.settings.Enable();
-    this.UpdateCurrentFont();
+    this.ApplyStyles();
     this.panelsChangedKey = global.settings.connect("changed::panels-enabled", () => {
-      this.UpdateCurrentFont();
+      this.ApplyStyles();
+    });
+
+    global.settings.connect("changed::panel-edit-mode", () => {
+      this.ApplyStyles();
     });
   }
 
   Disable() {
     this.settings.Disable();
-    this.CleanupCurrentFont();
+    this.RestoreOriginalStyle();
     if (this.panelsChangedKey != null) {
       global.settings.disconnect(this.panelsChangedKey);
       this.panelsChangedKey = null;
     }
   }
 
-  UpdateCurrentFont = () => {
+  ApplyStyles = () => {
     if (this.settings.PanelFont == null) {
-      this.CleanupCurrentFont();
+      this.RestoreOriginalStyle();
     }
     else {
       for (const panel of panelManager.getPanels()) {
@@ -44,13 +48,21 @@ export class Extension {
         if (this.originalPanelStyles[panel.panelId] == null) {
           this.originalPanelStyles[panel.panelId] = panel.actor.style;
         }
+
+        const panelEditMode = global.settings.get_boolean("panel-edit-mode")
         
-        panel.actor.style = (this.originalPanelStyles[panel.panelId] ?? "") + `font-family: ${this.settings.PanelFont};`
+        panel.actor.style = (this.originalPanelStyles[panel.panelId] ?? "");
+        panel.actor.style += `font-family: ${this.settings.PanelFont};`;
+        panel.actor.style += `font-size: ${this.settings.PanelFontSize}px;`;
+        panel.actor.style += `background-color: ${this.settings.PanelColor};`;
+        panel.actor.style += `border-radius: ${this.settings.PanelBorderRadius}px;`;
+        panel.actor.style += `margin-left: ${this.settings.PanelMargin}px; margin-right: ${this.settings.PanelMargin}px;`;
+        panel.actor.style += `padding-left: ${this.settings.PanelPadding}px; padding-right: ${this.settings.PanelPadding}px;`;
       }
     }
   }
 
-  CleanupCurrentFont = () => {
+  RestoreOriginalStyle = () => {
     for (const panel of panelManager.getPanels()) {
       if (panel == null)
         continue;
