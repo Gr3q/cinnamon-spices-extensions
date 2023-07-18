@@ -152,8 +152,18 @@ class Extension {
                     panel.actor.style += `font-size: ${this.settings.PanelFontSize}px;`;
                     panel.actor.style += `background-color: ${this.settings.PanelColor};`;
                     panel.actor.style += `border-radius: ${this.settings.PanelBorderRadius}px;`;
-                    panel.actor.style += `margin-left: ${this.settings.PanelMargin}px; margin-right: ${this.settings.PanelMargin}px;`;
-                    panel.actor.style += `padding-left: ${this.settings.PanelPadding}px; padding-right: ${this.settings.PanelPadding}px;`;
+                    if (panel.panelPosition == imports.ui.panel.PanelLoc.top || panel.panelPosition == imports.ui.panel.PanelLoc.bottom)
+                        panel.actor.style += `margin-left: ${this.settings.PanelMargin}px; margin-right: ${this.settings.PanelMargin}px;`;
+                    else {
+                        panel.actor.style += `margin-bottom: ${Math.max(this.settings.PanelMargin, panel.margin_bottom)}px;`;
+                        panel.actor.style += `margin-top: ${this.settings.PanelMargin}px;`;
+                    }
+                    if (panel.panelPosition == imports.ui.panel.PanelLoc.top || panel.panelPosition == imports.ui.panel.PanelLoc.bottom)
+                        panel.actor.style += `padding-left: ${this.settings.PanelPadding}px; padding-right: ${this.settings.PanelPadding}px;`;
+                    else {
+                        panel.actor.style += `padding-bottom: ${this.settings.PanelPadding}px;`;
+                        panel.actor.style += `padding-top: ${this.settings.PanelPadding}px;`;
+                    }
                 }
             }
         };
