@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-02-01 08:53+0000\n"
+"POT-Creation-Date: 2023-07-18 19:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -33,6 +33,32 @@ msgstr ""
 msgid "Font Settings"
 msgstr ""
 
+#. 3.8->settings-schema.json->styling-section->title
+msgid "Styling Settings"
+msgstr ""
+
 #. 3.8->settings-schema.json->panelFont->description
 msgid "Font used in Panels"
+msgstr ""
+
+#. 3.8->settings-schema.json->panelColor->description
+msgid "Color of the Panel"
+msgstr ""
+
+#. 3.8->settings-schema.json->panelBorderRadius->description
+msgid "Border Radius of the Panel"
+msgstr ""
+
+#. 3.8->settings-schema.json->panelBorderRadius->units
+#. 3.8->settings-schema.json->panelPadding->units
+#. 3.8->settings-schema.json->panelMargin->units
+msgid "pixels"
+msgstr ""
+
+#. 3.8->settings-schema.json->panelPadding->description
+msgid "Long-Axis Padding of the Panel"
+msgstr ""
+
+#. 3.8->settings-schema.json->panelMargin->description
+msgid "Long-Axis Margin of the Panel"
 msgstr ""
